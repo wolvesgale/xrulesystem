@@ -6,6 +6,7 @@ import type { Schedule } from "../lib/demoStore";
 type ScheduleListProps = {
   schedules: Schedule[];
   highlightId?: string | null;
+  agencyId?: string | null;
 };
 
 function formatDate(date: string): string {
@@ -16,7 +17,17 @@ function formatTimeRange(start: string, end: string): string {
   return `${start}〜${end}`;
 }
 
-export default function ScheduleList({ schedules, highlightId }: ScheduleListProps) {
+export default function ScheduleList({ schedules, highlightId, agencyId }: ScheduleListProps) {
+  if (schedules.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/40 p-6 text-sm text-slate-300">
+        {agencyId
+          ? "選択中の代理店にはスケジュールが登録されていません。"
+          : "表示するスケジュールがありません。"}
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 shadow">
       <table className="min-w-full divide-y divide-slate-800 text-sm">

@@ -5,21 +5,18 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg } from "@fullcalendar/core";
-
-type CalendarEvent = {
-  id: string;
-  title: string;
-  date: string;
-};
+import type { Schedule } from "../lib/demoStore";
 
 export type ScheduleCalendarProps = {
-  events: CalendarEvent[];
+  schedules: Schedule[];
+  agencyId?: string | null;
   onSelectRange?: (start: Date, end: Date) => void;
   onEventClick?: (id: string) => void;
 };
 
 export default function ScheduleCalendar({
-  events,
+  schedules,
+  agencyId,
   onEventClick,
   onSelectRange
 }: ScheduleCalendarProps) {
@@ -31,12 +28,17 @@ export default function ScheduleCalendar({
 
   const calendarEvents = useMemo(
     () =>
-      events.map((event) => ({
-        id: event.id,
-        title: event.title,
-        start: event.date
+      schedules.map((schedule) => ({
+        id: schedule.id,
+        title: schedule.title,
+        start: schedule.date,
+        extendedProps: {
+          agencyId: schedule.agencyId,
+          location: schedule.location,
+          memo: schedule.memo
+        }
       })),
-    [events]
+    [schedules]
   );
 
   if (!mounted) {
@@ -69,6 +71,7 @@ export default function ScheduleCalendar({
       displayEventEnd={false}
       weekends
       locale="ja"
+      key={agencyId ?? "all"}
     />
   );
 }
