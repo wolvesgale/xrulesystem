@@ -6,6 +6,17 @@ import RuleForm from "../../components/RuleForm";
 import ScheduleList from "../../components/ScheduleList";
 import { demoStore, type Schedule } from "../../lib/demoStore";
 
+type RuleFormInitialValues = {
+  seriesId: string;
+  dates: string[];
+  title: string;
+  place: string;
+  memo: string;
+  startTime: string;
+  endTime: string;
+  agencyId: string;
+};
+
 function formatDateDisplay(date: string): string {
   return date.replace(/-/g, "/");
 }
@@ -20,8 +31,11 @@ export default function AgentPage() {
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(
     demoStore.agencies[0]?.id ?? null
   );
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [highlightSeriesId, setHighlightSeriesId] = useState<string | null>(null);
+  const [editingSeriesId, setEditingSeriesId] = useState<string | null>(null);
+  const [editingInitialValues, setEditingInitialValues] =
+    useState<RuleFormInitialValues | null>(null);
 
   const filteredSchedules = useMemo<Schedule[]>(() => {
     if (!selectedAgencyId) {
@@ -37,8 +51,48 @@ export default function AgentPage() {
     [selectedAgencyId]
   );
 
-  const handleFormSubmitted = () => {
+  const clearEditingState = () => {
+    setHighlightSeriesId(null);
+    setEditingSeriesId(null);
+    setEditingInitialValues(null);
+  };
+
+  const handleSeriesSelect = (seriesId: string) => {
+    const seriesSchedules = demoStore.getSchedulesBySeries(seriesId);
+    if (seriesSchedules.length === 0) {
+      return;
+    }
+    const sorted = [...seriesSchedules].sort((a, b) => a.date.localeCompare(b.date));
+    const first = sorted[0];
+
+    setHighlightSeriesId(seriesId);
+    setEditingSeriesId(seriesId);
+    setEditingInitialValues({
+      seriesId,
+      dates: sorted.map((schedule) => schedule.date),
+      title: first.title,
+      place: first.place,
+      memo: first.memo ?? "",
+      startTime: first.startTime,
+      endTime: first.endTime,
+      agencyId: first.agencyId
+    });
+
+    if (selectedAgencyId !== first.agencyId) {
+      setSelectedAgencyId(first.agencyId);
+    }
+  };
+
+  const handleFormSaved = () => {
     setRefreshKey((prev) => prev + 1);
+    clearEditingState();
+  };
+
+  const handleAgencyChange = (value: string) => {
+    const nextValue = value === "" ? null : value;
+    setSelectedAgencyId(nextValue);
+    setRefreshKey((prev) => prev + 1);
+    clearEditingState();
   };
 
   return (
@@ -54,12 +108,7 @@ export default function AgentPage() {
           代理店を選択
           <select
             value={selectedAgencyId ?? ""}
-            onChange={(event) => {
-              const value = event.target.value;
-              setSelectedScheduleId(null);
-              setSelectedAgencyId(value === "" ? null : value);
-              setRefreshKey((prev) => prev + 1);
-            }}
+            onChange={(event) => handleAgencyChange(event.target.value)}
             className="rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
           >
             <option value="" disabled>
@@ -111,7 +160,7 @@ export default function AgentPage() {
                 <h3 className="text-sm font-semibold text-slate-200">次回出店日</h3>
                 <p>
                   {nextSchedule
-                    ? `${formatDateDisplay(nextSchedule.date)} ${nextSchedule.location}`
+                    ? `${formatDateDisplay(nextSchedule.date)} ${nextSchedule.place}`
                     : "スケジュールが登録されていません"}
                 </p>
               </div>
@@ -122,7 +171,7 @@ export default function AgentPage() {
                 <Calendar
                   schedules={filteredSchedules}
                   agencyId={selectedAgencyId}
-                  onEventClick={(id) => setSelectedScheduleId(id)}
+                  onSeriesSelect={handleSeriesSelect}
                 />
               </div>
               <div>
@@ -130,7 +179,8 @@ export default function AgentPage() {
                 <ScheduleList
                   schedules={filteredSchedules}
                   agencyId={selectedAgencyId}
-                  highlightId={selectedScheduleId}
+                  highlightSeriesId={highlightSeriesId}
+                  onSeriesSelect={handleSeriesSelect}
                 />
               </div>
             </section>
@@ -139,7 +189,9 @@ export default function AgentPage() {
           <RuleForm
             agencies={demoStore.agencies}
             selectedAgencyId={selectedAgencyId}
-            onSubmitted={handleFormSubmitted}
+            editingSeriesId={editingSeriesId}
+            initialValues={editingInitialValues}
+            onSaved={handleFormSaved}
           />
         </>
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -11,14 +11,14 @@ export type ScheduleCalendarProps = {
   schedules: Schedule[];
   agencyId?: string | null;
   onSelectRange?: (start: Date, end: Date) => void;
-  onEventClick?: (id: string) => void;
+  onSeriesSelect?: (seriesId: string) => void;
 };
 
 export default function ScheduleCalendar({
   schedules,
   agencyId,
-  onEventClick,
-  onSelectRange
+  onSelectRange,
+  onSeriesSelect
 }: ScheduleCalendarProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -26,19 +26,50 @@ export default function ScheduleCalendar({
     setMounted(true);
   }, []);
 
+  const addDays = useCallback((date: string, amount: number) => {
+    const reference = new Date(`${date}T00:00:00`);
+    reference.setDate(reference.getDate() + amount);
+    return reference.toISOString().slice(0, 10);
+  }, []);
+
   const calendarEvents = useMemo(
     () =>
-      schedules.map((schedule) => ({
-        id: schedule.id,
-        title: schedule.title,
-        start: schedule.date,
-        extendedProps: {
-          agencyId: schedule.agencyId,
-          location: schedule.location,
-          memo: schedule.memo
-        }
-      })),
-    [schedules]
+      Array.from(
+        schedules.reduce((map, schedule) => {
+          const key = schedule.seriesId ?? schedule.id;
+          const list = map.get(key) ?? [];
+          list.push(schedule);
+          map.set(key, list);
+          return map;
+        }, new Map<string, Schedule[]>())
+      ).map(([seriesId, seriesSchedules]) => {
+        const sorted = [...seriesSchedules].sort((a, b) => a.date.localeCompare(b.date));
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        return {
+          id: seriesId,
+          title: first.title,
+          start: first.date,
+          end: addDays(last.date, 1),
+          extendedProps: {
+            seriesId,
+            agencyId: first.agencyId,
+            place: first.place,
+            memo: first.memo
+          }
+        };
+      }),
+    [addDays, schedules]
+  );
+
+  const handleEventClick = useCallback(
+    (arg: EventClickArg) => {
+      const seriesId = (arg.event.extendedProps.seriesId as string | undefined) ?? arg.event.id;
+      if (seriesId) {
+        onSeriesSelect?.(seriesId);
+      }
+    },
+    [onSeriesSelect]
   );
 
   if (!mounted) {
@@ -58,11 +89,7 @@ export default function ScheduleCalendar({
           onSelectRange(selection.start, selection.end);
         }
       }}
-      eventClick={(arg: EventClickArg) => {
-        if (onEventClick) {
-          onEventClick(arg.event.id);
-        }
-      }}
+      eventClick={handleEventClick}
       headerToolbar={{
         left: "prev,next today",
         center: "title",

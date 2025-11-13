@@ -7,7 +7,7 @@ import ScheduleList from "../../components/ScheduleList";
 import { demoStore, type Schedule } from "../../lib/demoStore";
 
 export default function AdminPage() {
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
+  const [highlightSeriesId, setHighlightSeriesId] = useState<string | null>(null);
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(
     demoStore.agencies[0]?.id ?? null
   );
@@ -23,6 +23,7 @@ export default function AdminPage() {
 
   const handleScheduleAdded = () => {
     setRefreshKey((prev) => prev + 1);
+    setHighlightSeriesId(null);
   };
 
   return (
@@ -40,7 +41,7 @@ export default function AdminPage() {
             value={selectedAgencyId ?? "all"}
             onChange={(event) => {
               const value = event.target.value;
-              setSelectedScheduleId(null);
+              setHighlightSeriesId(null);
               setSelectedAgencyId(value === "all" ? null : value);
               setRefreshKey((prev) => prev + 1);
             }}
@@ -60,7 +61,9 @@ export default function AdminPage() {
         <RuleForm
           agencies={demoStore.agencies}
           selectedAgencyId={selectedAgencyId}
-          onSubmitted={handleScheduleAdded}
+          editingSeriesId={null}
+          initialValues={null}
+          onSaved={handleScheduleAdded}
         />
         <div className="flex flex-col gap-6">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 shadow">
@@ -68,7 +71,7 @@ export default function AdminPage() {
             <Calendar
               schedules={schedules}
               agencyId={selectedAgencyId}
-              onEventClick={(id) => setSelectedScheduleId(id)}
+              onSeriesSelect={(seriesId) => setHighlightSeriesId(seriesId)}
             />
           </div>
           <div>
@@ -76,7 +79,8 @@ export default function AdminPage() {
             <ScheduleList
               schedules={schedules}
               agencyId={selectedAgencyId}
-              highlightId={selectedScheduleId}
+              highlightSeriesId={highlightSeriesId}
+              onSeriesSelect={(seriesId) => setHighlightSeriesId(seriesId)}
             />
           </div>
         </div>

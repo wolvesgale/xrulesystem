@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { addSchedulesForDates, type Agency } from "../lib/demoStore";
+import {
+  addSchedulesForDates,
+  updateSeries,
+  type Agency
+} from "../lib/demoStore";
 
 type RuleFormState = {
   garbageRule: string;
@@ -14,14 +18,27 @@ type ScheduleFormState = {
   title: string;
   startTime: string;
   endTime: string;
-  location: string;
+  place: string;
   memo: string;
+};
+
+type RuleFormInitialValues = {
+  seriesId: string;
+  dates: string[];
+  title: string;
+  place: string;
+  memo: string;
+  startTime: string;
+  endTime: string;
+  agencyId: string;
 };
 
 type RuleFormProps = {
   agencies: Agency[];
   selectedAgencyId: string | null;
-  onSubmitted?: () => void;
+  editingSeriesId?: string | null;
+  initialValues?: RuleFormInitialValues | null;
+  onSaved?: () => void;
 };
 
 const initialRuleState: RuleFormState = {
@@ -34,7 +51,7 @@ const initialScheduleState: ScheduleFormState = {
   title: "",
   startTime: "10:00",
   endTime: "18:00",
-  location: "",
+  place: "",
   memo: ""
 };
 
@@ -66,20 +83,45 @@ function uniqueSortedDates(dates: string[]): string[] {
 export default function RuleForm({
   agencies,
   selectedAgencyId,
-  onSubmitted
+  editingSeriesId,
+  initialValues,
+  onSaved
 }: RuleFormProps) {
   const [ruleState, setRuleState] = useState<RuleFormState>(initialRuleState);
-  const [scheduleState, setScheduleState] = useState<ScheduleFormState>(initialScheduleState);
+  const [scheduleState, setScheduleState] =
+    useState<ScheduleFormState>(initialScheduleState);
   const [dateInput, setDateInput] = useState<string>("");
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
 
+  const activeAgencyId = initialValues?.agencyId ?? selectedAgencyId ?? null;
+
+  useEffect(() => {
+    if (initialValues) {
+      setSelectedDates(uniqueSortedDates(initialValues.dates));
+      setScheduleState({
+        title: initialValues.title,
+        startTime: initialValues.startTime,
+        endTime: initialValues.endTime,
+        place: initialValues.place,
+        memo: initialValues.memo ?? ""
+      });
+    } else {
+      setSelectedDates([]);
+      setScheduleState(initialScheduleState);
+    }
+    setDateInput("");
+  }, [initialValues]);
+
   const selectedAgency = useMemo(
-    () => agencies.find((agency) => agency.id === selectedAgencyId) ?? null,
-    [agencies, selectedAgencyId]
+    () => agencies.find((agency) => agency.id === activeAgencyId) ?? null,
+    [agencies, activeAgencyId]
   );
 
-  const isDisabled = !selectedAgencyId;
-  const sortedDates = useMemo(() => uniqueSortedDates(selectedDates), [selectedDates]);
+  const isDisabled = !activeAgencyId;
+  const sortedDates = useMemo(
+    () => uniqueSortedDates(selectedDates),
+    [selectedDates]
+  );
 
   const handleAddDate = () => {
     if (!dateInput) return;
@@ -88,7 +130,11 @@ export default function RuleForm({
   };
 
   const handleAddWeekShortcut = () => {
-    const base = dateInput ? new Date(dateInput) : new Date();
+    const base = dateInput
+      ? new Date(dateInput)
+      : selectedDates[0]
+      ? new Date(selectedDates[0])
+      : new Date();
     const newDates = getWedToSunOfWeek(base);
     setSelectedDates((prev) => uniqueSortedDates([...prev, ...newDates]));
   };
@@ -97,9 +143,17 @@ export default function RuleForm({
     setSelectedDates((prev) => prev.filter((item) => item !== date));
   };
 
+  const resetScheduleForm = () => {
+    setScheduleState(initialScheduleState);
+    setSelectedDates([]);
+    setDateInput("");
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedAgencyId) {
+    const agencyIdForSubmit = activeAgencyId;
+
+    if (!agencyIdForSubmit) {
       alert("代理店を選択すると登録できます");
       return;
     }
@@ -114,29 +168,53 @@ export default function RuleForm({
       return;
     }
 
-    addSchedulesForDates({
-      title: scheduleState.title,
-      dates: sortedDates,
-      startTime: scheduleState.startTime || "00:00",
-      endTime: scheduleState.endTime || "23:59",
-      agencyId: selectedAgencyId,
-      location: scheduleState.location || "未設定",
-      memo: scheduleState.memo || undefined
-    });
+    const preparedPlace = scheduleState.place.trim() || "未設定";
+    const preparedMemo = scheduleState.memo.trim();
 
-    console.log("ルール保存", ruleState);
-    console.log("スケジュール追加", {
-      agencyId: selectedAgencyId,
-      dates: sortedDates,
-      ...scheduleState
-    });
+    if (editingSeriesId) {
+      updateSeries(editingSeriesId, {
+        title: scheduleState.title,
+        place: preparedPlace,
+        memo: preparedMemo || undefined,
+        dates: sortedDates,
+        startTime: scheduleState.startTime || "00:00",
+        endTime: scheduleState.endTime || "23:59",
+        agencyId: agencyIdForSubmit
+      });
+      console.log("予定を更新", {
+        seriesId: editingSeriesId,
+        agencyId: agencyIdForSubmit,
+        dates: sortedDates,
+        ...scheduleState,
+        place: preparedPlace,
+        memo: preparedMemo
+      });
+    } else {
+      const seriesId = addSchedulesForDates({
+        title: scheduleState.title,
+        place: preparedPlace,
+        memo: preparedMemo || undefined,
+        dates: sortedDates,
+        startTime: scheduleState.startTime || "00:00",
+        endTime: scheduleState.endTime || "23:59",
+        agencyId: agencyIdForSubmit
+      });
+      console.log("ルール保存", ruleState);
+      console.log("スケジュール追加", {
+        seriesId,
+        agencyId: agencyIdForSubmit,
+        dates: sortedDates,
+        ...scheduleState,
+        place: preparedPlace,
+        memo: preparedMemo
+      });
+      resetScheduleForm();
+    }
 
-    setScheduleState(initialScheduleState);
-    setSelectedDates([]);
-    setDateInput("");
-
-    onSubmitted?.();
+    onSaved?.();
   };
+
+  const submitLabel = editingSeriesId ? "予定を更新" : "ルール保存と催事登録";
 
   return (
     <form
@@ -153,7 +231,7 @@ export default function RuleForm({
         </p>
       </div>
 
-      {!selectedAgencyId && (
+      {!activeAgencyId && (
         <div className="rounded-md border border-dashed border-slate-700 bg-slate-900/40 p-3 text-sm text-slate-300">
           代理店を選択すると登録できます。
         </div>
@@ -317,16 +395,16 @@ export default function RuleForm({
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="scheduleLocation">
+            <label className="text-sm font-medium" htmlFor="schedulePlace">
               催事場所
             </label>
             <input
-              id="scheduleLocation"
+              id="schedulePlace"
               type="text"
-              value={scheduleState.location}
+              value={scheduleState.place}
               disabled={isDisabled}
               onChange={(event) =>
-                setScheduleState((prev) => ({ ...prev, location: event.target.value }))
+                setScheduleState((prev) => ({ ...prev, place: event.target.value }))
               }
               className={clsx(
                 "w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400",
@@ -403,7 +481,7 @@ export default function RuleForm({
             isDisabled && "cursor-not-allowed opacity-60"
           )}
         >
-          ルール保存と催事登録
+          {submitLabel}
         </button>
       </div>
     </form>
