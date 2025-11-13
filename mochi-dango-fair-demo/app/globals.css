@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-slate-950 text-slate-50;
+}
+
+.fc .fc-toolbar-title {
+  @apply text-lg font-semibold;
+}
+
+.fc .fc-daygrid-event {
+  @apply bg-slate-700 border border-slate-500 text-xs;
+}
