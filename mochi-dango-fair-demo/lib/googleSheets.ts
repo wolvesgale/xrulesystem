@@ -14,9 +14,20 @@ export type Venue = {
   updatedAt: string;
 };
 
+export type UserRow = {
+  loginId: string;
+  password: string;
+  role: "admin" | "agent";
+  agencyId: string | null;
+  displayName: string;
+};
+
 const SHEET_NAME = "venues";
 const VALUE_RANGE = `${SHEET_NAME}!A2:J`;
 const HEADER_LENGTH = 10;
+const USERS_SHEET_NAME = "users";
+const USERS_VALUE_RANGE = `${USERS_SHEET_NAME}!A2:E`;
+const USERS_HEADER_LENGTH = 5;
 
 function getSpreadsheetId(): string {
   const id = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
@@ -60,6 +71,44 @@ function mapRowToVenue(row: string[]): Venue {
 function matchesFilter(value: string, keyword?: string): boolean {
   if (!keyword) return true;
   return value.toLowerCase().includes(keyword.toLowerCase());
+}
+
+function mapRowToUser(row: string[]): UserRow {
+  const loginId = row[0] ?? "";
+  const displayName = (row[4] ?? "").trim() || loginId;
+  return {
+    loginId,
+    password: row[1] ?? "",
+    role: row[2] === "admin" ? "admin" : "agent",
+    agencyId: (row[3] ?? "").trim() || null,
+    displayName
+  };
+}
+
+// users シート全件を読み込む
+export async function listUsers(): Promise<UserRow[]> {
+  const sheets = getSheetsClient();
+  const response = await sheets.spreadsheets.values.get({ range: USERS_VALUE_RANGE });
+  const rows = response.data.values ?? [];
+
+  return rows
+    .filter((row) => row.length >= 1)
+    .map((row) => mapRowToUser([...row, ...Array(Math.max(0, USERS_HEADER_LENGTH - row.length)).fill("")]));
+}
+
+// ログイン ID とパスワードで 1 ユーザーを探す
+export async function findUserByCredentials(
+  loginId: string,
+  password: string
+): Promise<UserRow | null> {
+  const users = await listUsers();
+  return users.find((user) => user.loginId === loginId && user.password === password) ?? null;
+}
+
+// loginId だけからユーザーを取得
+export async function getUserByLoginId(loginId: string): Promise<UserRow | null> {
+  const users = await listUsers();
+  return users.find((user) => user.loginId === loginId) ?? null;
 }
 
 // venues シートを読み込み、ヘッダ行をスキップして配列に変換。

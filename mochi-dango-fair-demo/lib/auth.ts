@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
 export type SessionUser = {
+  loginId: string;
+  displayName: string;
   role: "admin" | "agent";
   agencyId: string | null;
 };
@@ -17,7 +19,13 @@ export function getSessionUserFromCookies(): SessionUser | null {
 
   try {
     const parsed = JSON.parse(raw) as SessionUser;
-    if (parsed.role === "admin" || parsed.role === "agent") return parsed;
+    if (
+      (parsed.role === "admin" || parsed.role === "agent") &&
+      typeof parsed.loginId === "string" &&
+      typeof parsed.displayName === "string"
+    ) {
+      return parsed;
+    }
     return null;
   } catch {
     return null;

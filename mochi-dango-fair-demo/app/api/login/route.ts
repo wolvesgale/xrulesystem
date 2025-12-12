@@ -1,6 +1,7 @@
 // Handles session-issuing login requests.
 import { NextResponse } from "next/server";
 import { setSessionUser } from "@/lib/auth";
+import { findUserByCredentials } from "@/lib/googleSheets";
 
 export async function POST(request: Request) {
   const { id, password } = (await request.json().catch(() => ({}))) as {
@@ -8,20 +9,26 @@ export async function POST(request: Request) {
     password?: string;
   };
 
-  const adminMatch =
-    id === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD;
-  if (adminMatch) {
-    setSessionUser({ role: "admin", agencyId: null });
-    return NextResponse.json({ role: "admin", agencyId: null });
+  if (!id || !password) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  const agentMatch =
-    id === process.env.AGENT_USER && password === process.env.AGENT_PASSWORD;
-  if (agentMatch) {
-    const agencyId = process.env.AGENT_AGENCY_ID ?? null;
-    setSessionUser({ role: "agent", agencyId });
-    return NextResponse.json({ role: "agent", agencyId });
+  const user = await findUserByCredentials(id, password);
+  if (!user) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
-  return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  const sessionUser = {
+    loginId: user.loginId,
+    displayName: user.displayName || user.loginId,
+    role: user.role,
+    agencyId: user.role === "agent" ? user.agencyId : null
+  } as const;
+
+  setSessionUser(sessionUser);
+  return NextResponse.json({
+    role: sessionUser.role,
+    agencyId: sessionUser.agencyId,
+    displayName: sessionUser.displayName
+  });
 }
