@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { getPrisma, requireDatabaseUrl } from "@/lib/db";
+import { ensureUniqueVenueSlug, slugify } from "@/lib/slug";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const session = getSessionUserFromRequest(request);
@@ -84,9 +85,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const nextSlug = body.name?.trim()
+      ? await ensureUniqueVenueSlug(prisma, tenantId, slugify(body.name.trim()), target.id)
+      : undefined;
+
     const updated = await prisma.venue.update({
       where: { id: target.id },
       data: {
+        slug: nextSlug,
         name: body.name?.trim() || undefined,
         address: body.address?.trim() || undefined,
         rules: body.rules?.trim() || undefined,

@@ -57,18 +57,18 @@ async function main() {
   });
 
   const superAdmin: SeedUser = {
-    loginId: envOrDefault("SEED_SUPER_ID", "superadmin"),
-    password: envOrDefault("SEED_SUPER_PW", "SuperAdmin@123"),
+    loginId: envOrDefault("DEMO_SUPERADMIN_ID", "superadmin"),
+    password: envOrDefault("DEMO_SUPERADMIN_PW", "superadmin123"),
     displayName: envOrDefault("SEED_SUPER_NAME", "全体管理者")
   };
   const admin: SeedUser = {
-    loginId: envOrDefault("SEED_ADMIN_ID", "admin01"),
-    password: envOrDefault("SEED_ADMIN_PW", "Admin@123"),
+    loginId: envOrDefault("DEMO_ADMIN_ID", "admin01"),
+    password: envOrDefault("DEMO_ADMIN_PW", "admin01123"),
     displayName: envOrDefault("SEED_ADMIN_NAME", "管理者")
   };
   const agent: SeedUser = {
-    loginId: envOrDefault("SEED_AGENT_ID", "agent01"),
-    password: envOrDefault("SEED_AGENT_PW", "Agent@123"),
+    loginId: envOrDefault("DEMO_AGENT_ID", "agent01"),
+    password: envOrDefault("DEMO_AGENT_PW", "agent01123"),
     displayName: envOrDefault("SEED_AGENT_NAME", "代理店担当")
   };
 
@@ -157,7 +157,7 @@ async function main() {
   ];
 
   for (const venue of venues) {
-    await prisma.venue.upsert({
+    const savedVenue = await prisma.venue.upsert({
       where: { slug: venue.slug },
       update: {
         name: venue.name,
@@ -175,6 +175,21 @@ async function main() {
         notes: venue.notes,
         referenceUrl: venue.referenceUrl,
         tenantId: tenant.id
+      }
+    });
+
+    await prisma.venueNote.upsert({
+      where: { slug: `${venue.slug}-note` },
+      update: {
+        title: `${venue.name} 裏方メモ`,
+        memo: venue.rules,
+        venueId: savedVenue.id
+      },
+      create: {
+        slug: `${venue.slug}-note`,
+        title: `${venue.name} 裏方メモ`,
+        memo: venue.rules,
+        venueId: savedVenue.id
       }
     });
   }

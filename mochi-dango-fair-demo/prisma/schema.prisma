@@ -108,6 +108,7 @@ model EventDay {
 model VenueNote {
   id        String   @id @default(cuid())
   venueId   String
+  slug      String   @unique
   title     String
   fileUrl   String?
   memo      String?

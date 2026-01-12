@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { getPrisma, requireDatabaseUrl } from "@/lib/db";
+import { ensureUniqueVenueSlug, slugify } from "@/lib/slug";
 
 export async function GET(request: NextRequest) {
   const session = getSessionUserFromRequest(request);
@@ -92,9 +93,12 @@ export async function POST(request: NextRequest) {
   try {
     requireDatabaseUrl();
     const prisma = getPrisma();
+    const baseSlug = slugify(body.name.trim());
+    const slug = await ensureUniqueVenueSlug(prisma, tenantId, baseSlug);
     const venue = await prisma.venue.create({
       data: {
         tenantId,
+        slug,
         name: body.name.trim(),
         address: body.address?.trim() || null,
         rules: body.rules?.trim() || null,
