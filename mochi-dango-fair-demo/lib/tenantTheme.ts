@@ -1,6 +1,6 @@
 // Tenant theme lookup helpers for branding.
 import { cache } from "react";
-import { prisma } from "@/lib/db";
+import { getPrisma } from "@/lib/db";
 
 export type TenantTheme = {
   siteTitle: string;
@@ -19,6 +19,7 @@ const DEFAULT_THEME: TenantTheme = {
 // Fetches the first active tenant theme as a fallback.
 export const getActiveTenantTheme = cache(async (): Promise<TenantTheme> => {
   try {
+    const prisma = getPrisma();
     const tenant = await prisma.tenant.findFirst({
       where: { status: "active" },
       orderBy: { createdAt: "asc" }
