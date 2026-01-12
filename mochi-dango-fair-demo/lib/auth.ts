@@ -10,12 +10,12 @@ export type SessionUser = {
   tenantId: string | null;
 };
 
-const SESSION_COOKIE_NAME = "xr_session";
+export const SESSION_COOKIE = "xr_session";
 
 // Cookie からセッション情報を取得
 export function getSessionUserFromCookies(): SessionUser | null {
   const cookieStore = cookies();
-  const raw = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const raw = cookieStore.get(SESSION_COOKIE)?.value;
   if (!raw) return null;
 
   try {
@@ -43,7 +43,7 @@ export function getSessionUserFromRequest(_req: NextRequest): SessionUser | null
 
 // セッションをセットするヘルパ
 export function setSessionUser(user: SessionUser) {
-  cookies().set(SESSION_COOKIE_NAME, JSON.stringify(user), {
+  cookies().set(SESSION_COOKIE, JSON.stringify(user), {
     httpOnly: true,
     sameSite: "lax",
     path: "/"
@@ -52,5 +52,5 @@ export function setSessionUser(user: SessionUser) {
 
 // セッション削除ヘルパ
 export function clearSessionUser() {
-  cookies().delete(SESSION_COOKIE_NAME);
+  cookies().delete(SESSION_COOKIE);
 }
