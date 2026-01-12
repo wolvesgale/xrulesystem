@@ -5,7 +5,7 @@ import { getSessionUserFromCookies } from "@/lib/auth";
 // Server component for admin dashboard entry.
 export default function AdminPage() {
   const session = getSessionUserFromCookies();
-  if (!session || session.role !== "admin") {
+  if (!session || (session.role !== "admin" && session.role !== "super_admin")) {
     redirect("/login");
   }
 

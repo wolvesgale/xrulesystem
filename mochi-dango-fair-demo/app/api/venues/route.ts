@@ -1,7 +1,7 @@
 // Venues collection API for listing and creating records.
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { createVenue, listVenues } from "@/lib/googleSheets";
+import { prisma } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   const session = getSessionUserFromRequest(request);
@@ -9,19 +9,44 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const storeName = request.nextUrl.searchParams.get("storeName") || undefined;
-  const floorName = request.nextUrl.searchParams.get("floorName") || undefined;
+  const tenantId = session.tenantId;
+  if (!tenantId) {
+    return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
+  }
+
+  const name = request.nextUrl.searchParams.get("name") || undefined;
+  const address = request.nextUrl.searchParams.get("address") || undefined;
   const keyword = request.nextUrl.searchParams.get("q") || undefined;
 
-  const filters = {
-    storeName,
-    floorName,
-    keyword,
-    agencyId: session.role === "agent" ? session.agencyId ?? undefined : undefined
-  };
+  const venues = await prisma.venue.findMany({
+    where: {
+      tenantId,
+      ...(name ? { name: { contains: name, mode: "insensitive" } } : {}),
+      ...(address ? { address: { contains: address, mode: "insensitive" } } : {}),
+      ...(keyword
+        ? {
+            OR: [
+              { rules: { contains: keyword, mode: "insensitive" } },
+              { notes: { contains: keyword, mode: "insensitive" } },
+              { referenceUrl: { contains: keyword, mode: "insensitive" } }
+            ]
+          }
+        : {})
+    },
+    orderBy: { updatedAt: "desc" }
+  });
 
-  const venues = await listVenues(filters);
-  return NextResponse.json(venues);
+  return NextResponse.json(
+    venues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+      address: venue.address,
+      rules: venue.rules,
+      notes: venue.notes,
+      referenceUrl: venue.referenceUrl,
+      updatedAt: venue.updatedAt.toISOString()
+    }))
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -30,30 +55,45 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    storeName?: string;
-    floorName?: string;
-    placeDetail?: string;
-    svName?: string;
-    photoUrl?: string;
-    memo?: string;
-    agencyId?: string;
-  };
-
-  const baseAgencyId = session.role === "agent" ? session.agencyId : body.agencyId;
-  if (!baseAgencyId) {
-    return NextResponse.json({ error: "agencyId is required" }, { status: 400 });
+  if (session.role === "agent") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const venue = await createVenue({
-    agencyId: baseAgencyId,
-    storeName: body.storeName ?? "",
-    floorName: body.floorName ?? "",
-    placeDetail: body.placeDetail ?? "",
-    svName: body.svName ?? "",
-    photoUrl: body.photoUrl ?? "",
-    memo: body.memo ?? ""
+  const tenantId = session.tenantId;
+  if (!tenantId) {
+    return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    name?: string;
+    address?: string;
+    rules?: string;
+    notes?: string;
+    referenceUrl?: string;
+  };
+
+  if (!body.name?.trim()) {
+    return NextResponse.json({ error: "name is required" }, { status: 400 });
+  }
+
+  const venue = await prisma.venue.create({
+    data: {
+      tenantId,
+      name: body.name.trim(),
+      address: body.address?.trim() || null,
+      rules: body.rules?.trim() || null,
+      notes: body.notes?.trim() || null,
+      referenceUrl: body.referenceUrl?.trim() || null
+    }
   });
 
-  return NextResponse.json(venue);
+  return NextResponse.json({
+    id: venue.id,
+    name: venue.name,
+    address: venue.address,
+    rules: venue.rules,
+    notes: venue.notes,
+    referenceUrl: venue.referenceUrl,
+    updatedAt: venue.updatedAt.toISOString()
+  });
 }

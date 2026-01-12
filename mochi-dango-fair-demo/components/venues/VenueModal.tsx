@@ -1,75 +1,69 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Venue } from "@/lib/googleSheets";
+import type { VenueRecord } from "@/lib/types";
 
-export type VenueModalMode = "create" | "edit";
+export type VenueModalMode = "create" | "edit" | "view";
 
 type VenueModalProps = {
   mode: VenueModalMode;
-  initialVenue?: Venue;
-  canEditAgencyId: boolean;
-  defaultAgencyId?: string | null;
+  initialVenue?: VenueRecord;
+  readOnly?: boolean;
   onClose: () => void;
-  onSaved: (venue: Venue) => void;
+  onSaved?: (venue: VenueRecord) => void;
+  onDeleted?: (id: string) => void;
 };
 
 // Modal for creating or editing venue records.
 export function VenueModal({
   mode,
   initialVenue,
-  canEditAgencyId,
-  defaultAgencyId,
+  readOnly = false,
   onClose,
-  onSaved
+  onSaved,
+  onDeleted
 }: VenueModalProps) {
-  const [storeName, setStoreName] = useState("");
-  const [floorName, setFloorName] = useState("");
-  const [placeDetail, setPlaceDetail] = useState("");
-  const [svName, setSvName] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [memo, setMemo] = useState("");
-  const [agencyId, setAgencyId] = useState<string>(defaultAgencyId ?? "");
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [rules, setRules] = useState("");
+  const [notes, setNotes] = useState("");
+  const [referenceUrl, setReferenceUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (initialVenue) {
-      setStoreName(initialVenue.storeName);
-      setFloorName(initialVenue.floorName);
-      setPlaceDetail(initialVenue.placeDetail);
-      setSvName(initialVenue.svName);
-      setPhotoUrl(initialVenue.photoUrl);
-      setMemo(initialVenue.memo);
-      setAgencyId(initialVenue.agencyId);
+      setName(initialVenue.name);
+      setAddress(initialVenue.address ?? "");
+      setRules(initialVenue.rules ?? "");
+      setNotes(initialVenue.notes ?? "");
+      setReferenceUrl(initialVenue.referenceUrl ?? "");
     } else {
-      setStoreName("");
-      setFloorName("");
-      setPlaceDetail("");
-      setSvName("");
-      setPhotoUrl("");
-      setMemo("");
-      setAgencyId(defaultAgencyId ?? "");
+      setName("");
+      setAddress("");
+      setRules("");
+      setNotes("");
+      setReferenceUrl("");
     }
-  }, [initialVenue, defaultAgencyId]);
+  }, [initialVenue]);
 
-  const heading = useMemo(() => (mode === "create" ? "催事場を新規登録" : "催事場情報を編集"), [mode]);
+  const heading = useMemo(() => {
+    if (mode === "create") return "開催場所を新規登録";
+    if (mode === "edit") return "開催場所情報を編集";
+    return "開催場所情報を確認";
+  }, [mode]);
 
   const handleSubmit = async () => {
     setLoading(true);
     setError("");
     try {
-      const payload: Record<string, string> = {
-        storeName,
-        floorName,
-        placeDetail,
-        svName,
-        photoUrl,
-        memo
+      const payload = {
+        name,
+        address,
+        rules,
+        notes,
+        referenceUrl
       };
-      if (canEditAgencyId) {
-        payload.agencyId = agencyId;
-      }
 
       const url = mode === "create" ? "/api/venues" : `/api/venues/${initialVenue?.id ?? ""}`;
       const response = await fetch(url, {
@@ -82,8 +76,33 @@ export function VenueModal({
         setError(data.error ?? "保存に失敗しました");
         return;
       }
-      const venue = (await response.json()) as Venue;
-      onSaved(venue);
+      const venue = (await response.json()) as VenueRecord;
+      onSaved?.(venue);
+    } catch (err) {
+      console.error(err);
+      setError("通信エラーが発生しました");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isReadOnly = readOnly || mode === "view";
+
+  const handleDelete = async () => {
+    if (!initialVenue) return;
+    if (!window.confirm("開催場所情報を削除しますか？")) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/venues/${initialVenue.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "削除に失敗しました");
+        return;
+      }
+      onDeleted?.(initialVenue.id);
     } catch (err) {
       console.error(err);
       setError("通信エラーが発生しました");
@@ -98,7 +117,7 @@ export function VenueModal({
         <div className="flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold">{heading}</h3>
-            <p className="text-sm text-slate-400">SV 情報や場所の詳細を入力してください。</p>
+            <p className="text-sm text-slate-400">開催場所の詳細や裏方ルールを管理します。</p>
           </div>
           <button className="text-slate-400 hover:text-white" onClick={onClose} aria-label="閉じる">
             ×
@@ -106,81 +125,79 @@ export function VenueModal({
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-1 text-sm text-slate-200">
-            店舗名
+            開催場所名
             <input
-              value={storeName}
-              onChange={(event) => setStoreName(event.target.value)}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={isReadOnly}
               className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
             />
           </label>
           <label className="space-y-1 text-sm text-slate-200">
-            フロア名
+            住所・エリア
             <input
-              value={floorName}
-              onChange={(event) => setFloorName(event.target.value)}
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
+              disabled={isReadOnly}
               className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
             />
           </label>
           <label className="space-y-1 text-sm text-slate-200 md:col-span-2">
-            場所の詳細
-            <input
-              value={placeDetail}
-              onChange={(event) => setPlaceDetail(event.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
-            />
-          </label>
-          <label className="space-y-1 text-sm text-slate-200">
-            SV 名
-            <input
-              value={svName}
-              onChange={(event) => setSvName(event.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
-            />
-          </label>
-          <label className="space-y-1 text-sm text-slate-200">
-            フロア写真 URL
-            <input
-              value={photoUrl}
-              onChange={(event) => setPhotoUrl(event.target.value)}
-              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
-            />
-          </label>
-          <label className="space-y-1 text-sm text-slate-200 md:col-span-2">
-            メモ
+            裏方ルール・注意事項
             <textarea
-              value={memo}
-              onChange={(event) => setMemo(event.target.value)}
+              value={rules}
+              onChange={(event) => setRules(event.target.value)}
+              disabled={isReadOnly}
               className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
               rows={3}
             />
           </label>
-          {canEditAgencyId && (
-            <label className="space-y-1 text-sm text-slate-200 md:col-span-2">
-              代理店 ID
-              <input
-                value={agencyId}
-                onChange={(event) => setAgencyId(event.target.value)}
-                className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
-                placeholder="agency-123 など"
-              />
-            </label>
-          )}
+          <label className="space-y-1 text-sm text-slate-200">
+            参考リンク（PDF/画像）
+            <input
+              value={referenceUrl}
+              onChange={(event) => setReferenceUrl(event.target.value)}
+              disabled={isReadOnly}
+              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
+            />
+          </label>
+          <label className="space-y-1 text-sm text-slate-200">
+            メモ
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              disabled={isReadOnly}
+              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
+              rows={3}
+            />
+          </label>
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex justify-end gap-3">
+          {!isReadOnly && mode === "edit" && (
+            <button
+              onClick={handleDelete}
+              disabled={loading}
+              className="rounded-md border border-red-500/60 px-4 py-2 text-sm font-semibold text-red-300 hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              削除する
+            </button>
+          )}
           <button
             onClick={onClose}
             className="rounded-md border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-slate-500"
           >
             キャンセル
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading || (canEditAgencyId && agencyId.trim() === "")}
-            className="rounded-md bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {loading ? "保存中..." : "保存する"}
-          </button>
+          {!isReadOnly && (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || name.trim() === ""}
+              className="rounded-md bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {loading ? "保存中..." : "保存する"}
+            </button>
+          )}
         </div>
       </div>
     </div>

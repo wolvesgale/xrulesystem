@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Calendar from "./Calendar";
 import ScheduleList from "./ScheduleList";
 import { VenueManager } from "./venues/VenueManager";
 import { demoStore, type Schedule } from "@/lib/demoStore";
+import type { VenueRecord } from "@/lib/types";
+import { VenueModal } from "./venues/VenueModal";
 
 type AgentDashboardClientProps = {
   agencyId: string | null;
@@ -14,6 +16,8 @@ type AgentDashboardClientProps = {
 export function AgentDashboardClient({ agencyId }: AgentDashboardClientProps) {
   const [highlightSeriesId, setHighlightSeriesId] = useState<string | null>(null);
   const [visibleAgencyIds, setVisibleAgencyIds] = useState<string[]>(agencyId ? [agencyId] : []);
+  const [venues, setVenues] = useState<VenueRecord[]>([]);
+  const [selectedVenue, setSelectedVenue] = useState<VenueRecord | null>(null);
 
   const filteredSchedules = useMemo<Schedule[]>(() => {
     if (!agencyId) {
@@ -47,6 +51,29 @@ export function AgentDashboardClient({ agencyId }: AgentDashboardClientProps) {
         ? prev.filter((id) => id !== targetAgencyId)
         : [...prev, targetAgencyId]
     );
+  };
+
+  useEffect(() => {
+    const fetchVenues = async () => {
+      try {
+        const response = await fetch("/api/venues");
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as VenueRecord[];
+        setVenues(data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchVenues();
+  }, []);
+
+  const handleVenueSelect = (place: string) => {
+    const matched = venues.find((venue) => place.includes(venue.name)) ?? null;
+    if (matched) {
+      setSelectedVenue(matched);
+    }
   };
 
   return (
@@ -112,6 +139,7 @@ export function AgentDashboardClient({ agencyId }: AgentDashboardClientProps) {
                   visibleAgencyIds={visibleAgencyIds}
                   onToggleAgencyVisible={handleToggleAgencyVisible}
                   onSeriesSelect={handleSeriesSelect}
+                  onVenueSelect={handleVenueSelect}
                   isAdmin={false}
                 />
               </div>
@@ -122,15 +150,24 @@ export function AgentDashboardClient({ agencyId }: AgentDashboardClientProps) {
                   agencyId={agencyId}
                   highlightSeriesId={highlightSeriesId}
                   onSeriesSelect={handleSeriesSelect}
+                  onVenueSelect={handleVenueSelect}
                   agencies={demoStore.agencies.filter((agency) => agency.id === agencyId)}
                   visibleAgencyIds={visibleAgencyIds}
                   isAdmin={false}
                 />
               </div>
-              <VenueManager canEditAgencyId={false} fixedAgencyId={agencyId} title="催事場情報" />
+              <VenueManager canEdit={false} title="開催場所情報" />
             </section>
           </div>
         </>
+      )}
+      {selectedVenue && (
+        <VenueModal
+          mode="view"
+          initialVenue={selectedVenue}
+          readOnly
+          onClose={() => setSelectedVenue(null)}
+        />
       )}
     </div>
   );

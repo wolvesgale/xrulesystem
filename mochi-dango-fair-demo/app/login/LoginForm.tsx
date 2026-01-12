@@ -24,8 +24,8 @@ export function LoginForm() {
         setError(data.error ?? "ログインに失敗しました");
         return;
       }
-      const data = (await response.json()) as { role: "admin" | "agent" };
-      if (data.role === "admin") {
+      const data = (await response.json()) as { role: "admin" | "agent" | "super_admin" };
+      if (data.role === "admin" || data.role === "super_admin") {
         window.location.href = "/admin";
       } else {
         window.location.href = "/agent";

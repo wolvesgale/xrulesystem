@@ -5,8 +5,9 @@ import { NextRequest } from "next/server";
 export type SessionUser = {
   loginId: string;
   displayName: string;
-  role: "admin" | "agent";
+  role: "admin" | "agent" | "super_admin";
   agencyId: string | null;
+  tenantId: string | null;
 };
 
 const SESSION_COOKIE_NAME = "xr_session";
@@ -20,9 +21,11 @@ export function getSessionUserFromCookies(): SessionUser | null {
   try {
     const parsed = JSON.parse(raw) as SessionUser;
     if (
-      (parsed.role === "admin" || parsed.role === "agent") &&
+      (parsed.role === "admin" || parsed.role === "agent" || parsed.role === "super_admin") &&
       typeof parsed.loginId === "string" &&
-      typeof parsed.displayName === "string"
+      typeof parsed.displayName === "string" &&
+      (typeof parsed.tenantId === "string" || parsed.tenantId === null) &&
+      (typeof parsed.agencyId === "string" || parsed.agencyId === null)
     ) {
       return parsed;
     }
