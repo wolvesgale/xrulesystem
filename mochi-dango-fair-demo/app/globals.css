@@ -2,8 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --tenant-primary: #0f172a;
+  --tenant-accent: #38bdf8;
+}
+
 body {
-  @apply bg-slate-950 text-slate-50;
+  background-color: var(--tenant-primary);
+  @apply text-slate-50;
 }
 
 .fc .fc-toolbar-title {

@@ -9,6 +9,7 @@ type ScheduleListProps = {
   highlightSeriesId?: string | null;
   agencyId?: string | null;
   onSeriesSelect?: (seriesId: string) => void;
+  onVenueSelect?: (place: string) => void;
   agencies: Agency[];
   visibleAgencyIds: string[];
   isAdmin?: boolean;
@@ -48,6 +49,7 @@ export default function ScheduleList({
   highlightSeriesId,
   agencyId,
   onSeriesSelect,
+  onVenueSelect,
   agencies,
   visibleAgencyIds,
   isAdmin = false
@@ -126,19 +128,25 @@ export default function ScheduleList({
           {rows.map((row) => {
             const isHighlight = highlightSeriesId === row.seriesId;
             const seriesColor = agencyColorMap[row.agencyId] ?? "#64748b";
+            const handleRowClick = () => {
+              if (isAdmin && onSeriesSelect) {
+                onSeriesSelect(row.seriesId);
+                return;
+              }
+              if (onVenueSelect) {
+                onVenueSelect(row.place);
+              }
+            };
+
             return (
               <tr
                 key={row.seriesId}
                 className={clsx(
                   "transition",
                   isHighlight ? "bg-slate-800/80" : "hover:bg-slate-800/40",
-                  isAdmin && onSeriesSelect ? "cursor-pointer" : "cursor-default"
+                  isAdmin && onSeriesSelect ? "cursor-pointer" : onVenueSelect ? "cursor-pointer" : "cursor-default"
                 )}
-                onClick={() => {
-                  if (isAdmin && onSeriesSelect) {
-                    onSeriesSelect(row.seriesId);
-                  }
-                }}
+                onClick={handleRowClick}
               >
                 <td className="px-4 py-3 font-medium text-slate-100">
                   <div className="flex items-center gap-2">
