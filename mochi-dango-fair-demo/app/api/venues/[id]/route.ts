@@ -1,7 +1,10 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 // Venues item API for fetching, updating, and deleting single records.
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { getPrisma, requireDatabaseUrl } from "@/lib/db";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const session = getSessionUserFromRequest(request);
@@ -14,25 +17,32 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }
 
-  const venue = await prisma.venue.findFirst({
-    where: {
-      id: params.id,
-      tenantId
+  try {
+    requireDatabaseUrl();
+    const prisma = getPrisma();
+    const venue = await prisma.venue.findFirst({
+      where: {
+        id: params.id,
+        tenantId
+      }
+    });
+    if (!venue) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-  });
-  if (!venue) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
 
-  return NextResponse.json({
-    id: venue.id,
-    name: venue.name,
-    address: venue.address,
-    rules: venue.rules,
-    notes: venue.notes,
-    referenceUrl: venue.referenceUrl,
-    updatedAt: venue.updatedAt.toISOString()
-  });
+    return NextResponse.json({
+      id: venue.id,
+      name: venue.name,
+      address: venue.address,
+      rules: venue.rules,
+      notes: venue.notes,
+      referenceUrl: venue.referenceUrl,
+      updatedAt: venue.updatedAt.toISOString()
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+  }
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -58,36 +68,43 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     referenceUrl: string;
   }>;
 
-  const target = await prisma.venue.findFirst({
-    where: {
-      id: params.id,
-      tenantId
+  try {
+    requireDatabaseUrl();
+    const prisma = getPrisma();
+    const target = await prisma.venue.findFirst({
+      where: {
+        id: params.id,
+        tenantId
+      }
+    });
+    if (!target) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-  });
-  if (!target) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const updated = await prisma.venue.update({
+      where: { id: target.id },
+      data: {
+        name: body.name?.trim() || undefined,
+        address: body.address?.trim() || undefined,
+        rules: body.rules?.trim() || undefined,
+        notes: body.notes?.trim() || undefined,
+        referenceUrl: body.referenceUrl?.trim() || undefined
+      }
+    });
+
+    return NextResponse.json({
+      id: updated.id,
+      name: updated.name,
+      address: updated.address,
+      rules: updated.rules,
+      notes: updated.notes,
+      referenceUrl: updated.referenceUrl,
+      updatedAt: updated.updatedAt.toISOString()
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
   }
-
-  const updated = await prisma.venue.update({
-    where: { id: target.id },
-    data: {
-      name: body.name?.trim() || undefined,
-      address: body.address?.trim() || undefined,
-      rules: body.rules?.trim() || undefined,
-      notes: body.notes?.trim() || undefined,
-      referenceUrl: body.referenceUrl?.trim() || undefined
-    }
-  });
-
-  return NextResponse.json({
-    id: updated.id,
-    name: updated.name,
-    address: updated.address,
-    rules: updated.rules,
-    notes: updated.notes,
-    referenceUrl: updated.referenceUrl,
-    updatedAt: updated.updatedAt.toISOString()
-  });
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
@@ -105,17 +122,24 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }
 
-  const target = await prisma.venue.findFirst({
-    where: {
-      id: params.id,
-      tenantId
+  try {
+    requireDatabaseUrl();
+    const prisma = getPrisma();
+    const target = await prisma.venue.findFirst({
+      where: {
+        id: params.id,
+        tenantId
+      }
+    });
+    if (!target) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-  });
-  if (!target) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
 
-  // Physical deletion of the venue row in the database.
-  await prisma.venue.delete({ where: { id: target.id } });
-  return NextResponse.json({ ok: true });
+    // Physical deletion of the venue row in the database.
+    await prisma.venue.delete({ where: { id: target.id } });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+  }
 }

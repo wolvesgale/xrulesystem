@@ -1,7 +1,10 @@
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 // Agencies collection API for admin management.
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { getPrisma, requireDatabaseUrl } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
 
 export async function GET(request: NextRequest) {
@@ -21,30 +24,37 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }
 
-  const agencies = await prisma.agency.findMany({
-    where: { tenantId },
-    include: {
-      users: {
-        where: { role: "agent" },
-        select: {
-          id: true,
-          loginId: true,
-          name: true,
-          displayName: true
+  try {
+    requireDatabaseUrl();
+    const prisma = getPrisma();
+    const agencies = await prisma.agency.findMany({
+      where: { tenantId },
+      include: {
+        users: {
+          where: { role: "agent" },
+          select: {
+            id: true,
+            loginId: true,
+            name: true,
+            displayName: true
+          }
         }
-      }
-    },
-    orderBy: { createdAt: "desc" }
-  });
+      },
+      orderBy: { createdAt: "desc" }
+    });
 
-  return NextResponse.json(
-    agencies.map((agency) => ({
-      id: agency.id,
-      name: agency.name,
-      color: agency.color,
-      agentUser: agency.users[0] ?? null
-    }))
-  );
+    return NextResponse.json(
+      agencies.map((agency) => ({
+        id: agency.id,
+        name: agency.name,
+        color: agency.color,
+        agentUser: agency.users[0] ?? null
+      }))
+    );
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -73,41 +83,48 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "name, loginId, and password are required" }, { status: 400 });
   }
 
-  const passwordHash = await hashPassword(body.password.trim());
+  try {
+    requireDatabaseUrl();
+    const prisma = getPrisma();
+    const passwordHash = await hashPassword(body.password.trim());
 
-  const agency = await prisma.agency.create({
-    data: {
-      tenantId,
-      name: body.name.trim(),
-      color: body.color?.trim() || null,
-      users: {
-        create: {
-          loginId: body.loginId.trim(),
-          name: body.agentName?.trim() || body.name.trim(),
-          displayName: body.agentName?.trim() || null,
-          role: "agent",
-          passwordHash,
-          tenantId
+    const agency = await prisma.agency.create({
+      data: {
+        tenantId,
+        name: body.name.trim(),
+        color: body.color?.trim() || null,
+        users: {
+          create: {
+            loginId: body.loginId.trim(),
+            name: body.agentName?.trim() || body.name.trim(),
+            displayName: body.agentName?.trim() || null,
+            role: "agent",
+            passwordHash,
+            tenantId
+          }
+        }
+      },
+      include: {
+        users: {
+          where: { role: "agent" },
+          select: {
+            id: true,
+            loginId: true,
+            name: true,
+            displayName: true
+          }
         }
       }
-    },
-    include: {
-      users: {
-        where: { role: "agent" },
-        select: {
-          id: true,
-          loginId: true,
-          name: true,
-          displayName: true
-        }
-      }
-    }
-  });
+    });
 
-  return NextResponse.json({
-    id: agency.id,
-    name: agency.name,
-    color: agency.color,
-    agentUser: agency.users[0] ?? null
-  });
+    return NextResponse.json({
+      id: agency.id,
+      name: agency.name,
+      color: agency.color,
+      agentUser: agency.users[0] ?? null
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+  }
 }
