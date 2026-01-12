@@ -25,7 +25,12 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "googleapis": ["./lib/googleapis"]
+    }
   },
   "include": [
     "next-env.d.ts",
