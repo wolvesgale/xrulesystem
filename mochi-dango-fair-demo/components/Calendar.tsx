@@ -14,6 +14,7 @@ export type ScheduleCalendarProps = {
   onToggleAgencyVisible?: (agencyId: string) => void;
   onSelectRange?: (start: Date, end: Date) => void;
   onSeriesSelect?: (seriesId: string) => void;
+  onVenueSelect?: (place: string) => void;
   isAdmin?: boolean;
 };
 
@@ -24,6 +25,7 @@ export default function ScheduleCalendar({
   onToggleAgencyVisible,
   onSelectRange,
   onSeriesSelect,
+  onVenueSelect,
   isAdmin = false
 }: ScheduleCalendarProps) {
   const [mounted, setMounted] = useState(false);
@@ -96,14 +98,16 @@ export default function ScheduleCalendar({
   const handleEventClick = useCallback(
     (arg: EventClickArg) => {
       const seriesId = (arg.event.extendedProps.seriesId as string | undefined) ?? arg.event.id;
-      if (!isAdmin || !seriesId) {
+      const place = (arg.event.extendedProps.place as string | undefined) ?? arg.event.title;
+      if (isAdmin && seriesId) {
+        onSeriesSelect?.(seriesId);
         return;
       }
-      if (seriesId) {
-        onSeriesSelect?.(seriesId);
+      if (!isAdmin && onVenueSelect && place) {
+        onVenueSelect(place);
       }
     },
-    [isAdmin, onSeriesSelect]
+    [isAdmin, onSeriesSelect, onVenueSelect]
   );
 
   if (!mounted) {
