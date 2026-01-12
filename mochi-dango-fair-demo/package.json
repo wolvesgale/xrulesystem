@@ -9,8 +9,9 @@
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
-    "vercel-build": "npm run prisma:generate && npm run prisma:migrate:deploy && npm run prisma:seed && next build"
+    "vercel-build": "npm run prisma:generate && npm run prisma:migrate && npm run prisma:seed && next build"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

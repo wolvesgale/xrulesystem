@@ -16,7 +16,7 @@ function envOrDefault(key: string, fallback: string): string {
 }
 
 async function main() {
-  const tenantKey = envOrDefault("SEED_TENANT_KEY", "xrule-tenant");
+  const tenantKey = envOrDefault("SEED_TENANT_KEY", "demo-tenant");
   const tenantName = envOrDefault("SEED_TENANT_NAME", "Xrule");
   const tenant = await prisma.tenant.upsert({
     where: { tenantKey },
@@ -39,36 +39,36 @@ async function main() {
     }
   });
 
-  const agencyCode = envOrDefault("SEED_AGENCY_CODE", "xrule-agency-01");
-  const agencyName = envOrDefault("SEED_AGENCY_NAME", "Xrule 代理店");
+  const agencyCode = envOrDefault("SEED_AGENCY_CODE", "AGENCY-A");
+  const agencyName = envOrDefault("SEED_AGENCY_NAME", "サンプル代理店A");
   const agency = await prisma.agency.upsert({
     where: { code: agencyCode },
     update: {
       name: agencyName,
-      color: envOrDefault("SEED_AGENCY_COLOR", "#38bdf8"),
+      color: envOrDefault("SEED_AGENCY_COLOR", "#4F46E5"),
       tenantId: tenant.id
     },
     create: {
       code: agencyCode,
       name: agencyName,
-      color: envOrDefault("SEED_AGENCY_COLOR", "#38bdf8"),
+      color: envOrDefault("SEED_AGENCY_COLOR", "#4F46E5"),
       tenantId: tenant.id
     }
   });
 
   const superAdmin: SeedUser = {
     loginId: envOrDefault("SEED_SUPER_ID", "superadmin"),
-    password: envOrDefault("SEED_SUPER_PW", "superpass"),
+    password: envOrDefault("SEED_SUPER_PW", "SuperAdmin@123"),
     displayName: envOrDefault("SEED_SUPER_NAME", "全体管理者")
   };
   const admin: SeedUser = {
     loginId: envOrDefault("SEED_ADMIN_ID", "admin01"),
-    password: envOrDefault("SEED_ADMIN_PW", "adminpass"),
+    password: envOrDefault("SEED_ADMIN_PW", "Admin@123"),
     displayName: envOrDefault("SEED_ADMIN_NAME", "管理者")
   };
   const agent: SeedUser = {
     loginId: envOrDefault("SEED_AGENT_ID", "agent01"),
-    password: envOrDefault("SEED_AGENT_PW", "agentpass"),
+    password: envOrDefault("SEED_AGENT_PW", "Agent@123"),
     displayName: envOrDefault("SEED_AGENT_NAME", "代理店担当")
   };
 

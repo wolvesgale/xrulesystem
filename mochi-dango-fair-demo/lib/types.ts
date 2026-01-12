@@ -18,6 +18,7 @@ export type AgencyUser = {
 
 export type AgencyRecord = {
   id: string;
+  code: string;
   name: string;
   color: string | null;
   agentUser: AgencyUser | null;

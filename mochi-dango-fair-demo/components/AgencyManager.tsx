@@ -15,6 +15,7 @@ type AgencyModalProps = {
 // Modal for creating or editing agency accounts.
 function AgencyModal({ mode, initialAgency, onClose, onSaved }: AgencyModalProps) {
   const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [color, setColor] = useState("");
   const [agentName, setAgentName] = useState("");
   const [loginId, setLoginId] = useState("");
@@ -25,12 +26,14 @@ function AgencyModal({ mode, initialAgency, onClose, onSaved }: AgencyModalProps
   useEffect(() => {
     if (initialAgency) {
       setName(initialAgency.name);
+      setCode(initialAgency.code);
       setColor(initialAgency.color ?? "");
       setAgentName(initialAgency.agentUser?.name ?? "");
       setLoginId(initialAgency.agentUser?.loginId ?? "");
       setPassword("");
     } else {
       setName("");
+      setCode("");
       setColor("");
       setAgentName("");
       setLoginId("");
@@ -44,6 +47,7 @@ function AgencyModal({ mode, initialAgency, onClose, onSaved }: AgencyModalProps
     try {
       const payload = {
         name,
+        code,
         color,
         agentName,
         loginId,
@@ -100,6 +104,15 @@ function AgencyModal({ mode, initialAgency, onClose, onSaved }: AgencyModalProps
             />
           </label>
           <label className="space-y-1 text-sm text-slate-200">
+            代理店コード
+            <input
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              className="w-full rounded-md border border-slate-700 bg-slate-950/60 px-3 py-2"
+              placeholder="AGENCY-A"
+            />
+          </label>
+          <label className="space-y-1 text-sm text-slate-200">
             カラー設定
             <input
               value={color}
@@ -144,7 +157,13 @@ function AgencyModal({ mode, initialAgency, onClose, onSaved }: AgencyModalProps
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading || name.trim() === "" || loginId.trim() === "" || (isCreate && password.trim() === "")}
+            disabled={
+              loading ||
+              name.trim() === "" ||
+              code.trim() === "" ||
+              loginId.trim() === "" ||
+              (isCreate && password.trim() === "")
+            }
             className="rounded-md bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? "保存中..." : "保存する"}
@@ -245,6 +264,7 @@ export function AgencyManager() {
           <thead className="bg-slate-800/60 text-xs uppercase tracking-wide text-slate-300">
             <tr>
               <th className="px-4 py-2 text-left">代理店名</th>
+              <th className="px-4 py-2 text-left">代理店コード</th>
               <th className="px-4 py-2 text-left">担当者</th>
               <th className="px-4 py-2 text-left">ログインID</th>
               <th className="px-4 py-2 text-left">操作</th>
@@ -263,6 +283,7 @@ export function AgencyManager() {
                     {agency.name}
                   </div>
                 </td>
+                <td className="px-4 py-2">{agency.code}</td>
                 <td className="px-4 py-2">{agency.agentUser?.name ?? "-"}</td>
                 <td className="px-4 py-2">{agency.agentUser?.loginId ?? "-"}</td>
                 <td className="px-4 py-2">
@@ -288,7 +309,7 @@ export function AgencyManager() {
             ))}
             {agencies.length === 0 && !loading && (
               <tr>
-                <td colSpan={4} className="px-4 py-3 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-3 text-center text-slate-400">
                   代理店が登録されていません。
                 </td>
               </tr>

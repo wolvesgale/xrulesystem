@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { getPrisma, requireDatabaseUrl } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { Prisma } from "@prisma/client";
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const session = getSessionUserFromRequest(request);
@@ -23,6 +24,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   const body = (await request.json().catch(() => ({}))) as {
     name?: string;
+    code?: string;
     color?: string;
     agentName?: string;
     loginId?: string;
@@ -51,11 +53,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const updateData: {
       name?: string;
+      code?: string;
       color?: string | null;
     } = {};
 
     if (body.name?.trim()) {
       updateData.name = body.name.trim();
+    }
+    if (body.code?.trim()) {
+      updateData.code = body.code.trim();
     }
     if (body.color !== undefined) {
       updateData.color = body.color?.trim() || null;
@@ -85,11 +91,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     return NextResponse.json({
       id: updated.id,
+      code: updated.code,
       name: updated.name,
       color: updated.color,
       agentUser: agentUser ?? null
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "Duplicate agency code" }, { status: 409 });
+    }
     console.error(error);
     return NextResponse.json(
       { ok: false, error: "Server config error (migrate not applied)" },

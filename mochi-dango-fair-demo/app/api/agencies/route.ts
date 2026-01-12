@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserFromRequest } from "@/lib/auth";
 import { getPrisma, requireDatabaseUrl } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const session = getSessionUserFromRequest(request);
@@ -46,6 +47,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       agencies.map((agency) => ({
         id: agency.id,
+        code: agency.code,
         name: agency.name,
         color: agency.color,
         agentUser: agency.users[0] ?? null
@@ -76,14 +78,18 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => ({}))) as {
     name?: string;
+    code?: string;
     color?: string;
     agentName?: string;
     loginId?: string;
     password?: string;
   };
 
-  if (!body.name?.trim() || !body.loginId?.trim() || !body.password?.trim()) {
-    return NextResponse.json({ error: "name, loginId, and password are required" }, { status: 400 });
+  if (!body.name?.trim() || !body.code?.trim() || !body.loginId?.trim() || !body.password?.trim()) {
+    return NextResponse.json(
+      { error: "name, code, loginId, and password are required" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -95,6 +101,7 @@ export async function POST(request: NextRequest) {
       data: {
         tenantId,
         name: body.name.trim(),
+        code: body.code.trim(),
         color: body.color?.trim() || null,
         users: {
           create: {
@@ -122,11 +129,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       id: agency.id,
+      code: agency.code,
       name: agency.name,
       color: agency.color,
       agentUser: agency.users[0] ?? null
     });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "Duplicate agency code" }, { status: 409 });
+    }
     console.error(error);
     return NextResponse.json(
       { ok: false, error: "Server config error (migrate not applied)" },
