@@ -55,7 +55,10 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Server config error (migrate not applied)" },
+      { status: 500 }
+    );
   }
 }
 
@@ -111,6 +114,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Server config error (migrate not applied)" },
+      { status: 500 }
+    );
   }
 }

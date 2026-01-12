@@ -91,7 +91,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Server config error (migrate not applied)" },
+      { status: 500 }
+    );
   }
 }
 
@@ -125,6 +128,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ ok: false, error: "Server config error" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Server config error (migrate not applied)" },
+      { status: 500 }
+    );
   }
 }

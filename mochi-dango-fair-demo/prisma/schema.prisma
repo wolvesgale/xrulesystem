@@ -16,6 +16,7 @@ enum UserRole {
 
 model Tenant {
   id           String   @id @default(cuid())
+  tenantKey    String   @unique
   name         String
   primaryColor String?
   accentColor  String?
@@ -50,6 +51,7 @@ model User {
 model Agency {
   id        String   @id @default(cuid())
   tenantId  String
+  code      String   @unique
   name      String
   color     String?
   createdAt DateTime @default(now())
@@ -62,6 +64,7 @@ model Agency {
 model Venue {
   id           String      @id @default(cuid())
   tenantId     String
+  slug         String      @unique
   name         String
   address      String?
   rules        String?
