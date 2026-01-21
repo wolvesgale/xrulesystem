@@ -7,6 +7,18 @@ export type VenueRecord = {
   notes: string | null;
   referenceUrl: string | null;
   updatedAt: string;
+  attachments?: VenueAttachmentRecord[];
+};
+
+export type VenueAttachmentRecord = {
+  id: string;
+  url: string;
+  pathname: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  createdAt: string;
+  createdByUserId: string | null;
 };
 
 export type AgencyUser = {

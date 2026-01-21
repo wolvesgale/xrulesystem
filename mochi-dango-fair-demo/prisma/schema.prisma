@@ -75,6 +75,7 @@ model Venue {
   tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   events       Event[]
   venueNotes   VenueNote[]
+  attachments  VenueAttachment[]
 }
 
 model Event {
@@ -115,4 +116,19 @@ model VenueNote {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   venue     Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+}
+
+model VenueAttachment {
+  id              String   @id @default(cuid())
+  tenantId        String
+  venueId         String
+  url             String
+  pathname        String   @unique
+  filename        String
+  contentType     String
+  size            Int
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  venue           Venue    @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  createdByUser   User?    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
 }

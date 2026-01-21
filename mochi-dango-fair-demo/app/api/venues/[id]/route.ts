@@ -25,6 +25,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       where: {
         id: params.id,
         tenantId
+      },
+      include: {
+        attachments: {
+          orderBy: { createdAt: "desc" }
+        }
       }
     });
     if (!venue) {
@@ -38,7 +43,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       rules: venue.rules,
       notes: venue.notes,
       referenceUrl: venue.referenceUrl,
-      updatedAt: venue.updatedAt.toISOString()
+      updatedAt: venue.updatedAt.toISOString(),
+      attachments: venue.attachments.map((attachment) => ({
+        id: attachment.id,
+        url: attachment.url,
+        pathname: attachment.pathname,
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        size: attachment.size,
+        createdAt: attachment.createdAt.toISOString(),
+        createdByUserId: attachment.createdByUserId
+      }))
     });
   } catch (error) {
     console.error(error);

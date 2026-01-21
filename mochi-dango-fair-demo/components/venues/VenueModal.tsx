@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { VenueRecord } from "@/lib/types";
+import { upload } from "@vercel/blob/client";
+import type { VenueAttachmentRecord, VenueRecord } from "@/lib/types";
 
 export type VenueModalMode = "create" | "edit" | "view";
 
@@ -28,8 +29,11 @@ export function VenueModal({
   const [rules, setRules] = useState("");
   const [notes, setNotes] = useState("");
   const [referenceUrl, setReferenceUrl] = useState("");
+  const [attachments, setAttachments] = useState<VenueAttachmentRecord[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState("");
 
   useEffect(() => {
     if (initialVenue) {
@@ -38,14 +42,36 @@ export function VenueModal({
       setRules(initialVenue.rules ?? "");
       setNotes(initialVenue.notes ?? "");
       setReferenceUrl(initialVenue.referenceUrl ?? "");
+      setAttachments(initialVenue.attachments ?? []);
     } else {
       setName("");
       setAddress("");
       setRules("");
       setNotes("");
       setReferenceUrl("");
+      setAttachments([]);
     }
   }, [initialVenue]);
+
+  useEffect(() => {
+    const fetchAttachments = async () => {
+      if (!initialVenue?.id) {
+        return;
+      }
+      try {
+        const response = await fetch(`/api/venues/${initialVenue.id}`);
+        if (!response.ok) {
+          return;
+        }
+        const data = (await response.json()) as VenueRecord;
+        setAttachments(data.attachments ?? []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchAttachments();
+  }, [initialVenue?.id]);
 
   const heading = useMemo(() => {
     if (mode === "create") return "開催場所を新規登録";
@@ -87,6 +113,66 @@ export function VenueModal({
   };
 
   const isReadOnly = readOnly || mode === "view";
+
+  const refreshAttachments = async () => {
+    if (!initialVenue?.id) return;
+    try {
+      const response = await fetch(`/api/venues/${initialVenue.id}`);
+      if (!response.ok) {
+        return;
+      }
+      const data = (await response.json()) as VenueRecord;
+      setAttachments(data.attachments ?? []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpload = async (files: FileList | null) => {
+    if (!files || !initialVenue?.id) return;
+    setUploadError("");
+    setUploading(true);
+    try {
+      const tasks = Array.from(files).map((file) =>
+        upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/uploads/venue",
+          clientPayload: { venueId: initialVenue.id, filename: file.name }
+        })
+      );
+      await Promise.all(tasks);
+      await refreshAttachments();
+    } catch (err) {
+      console.error(err);
+      setUploadError("アップロードに失敗しました");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!window.confirm("添付ファイルを削除しますか？")) {
+      return;
+    }
+    try {
+      const response = await fetch(`/api/venues/attachments/${attachmentId}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => ({}))) as { error?: string };
+        setUploadError(data.error ?? "削除に失敗しました");
+        return;
+      }
+      setAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
+    } catch (err) {
+      console.error(err);
+      setUploadError("削除に失敗しました");
+    }
+  };
+
+  const formatSize = (size: number) => {
+    if (size < 1024) return `${size}B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
+    return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+  };
 
   const handleDelete = async () => {
     if (!initialVenue) return;
@@ -171,6 +257,58 @@ export function VenueModal({
               rows={3}
             />
           </label>
+        </div>
+        <div className="space-y-2 rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-200">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-semibold">参考資料ファイル</p>
+            {!isReadOnly && initialVenue?.id && (
+              <label className="text-xs text-slate-300">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,image/*"
+                  className="hidden"
+                  onChange={(event) => handleUpload(event.target.files)}
+                />
+                <span className="inline-flex cursor-pointer rounded-md border border-slate-700 px-3 py-1 text-xs text-slate-100 hover:border-slate-500">
+                  {uploading ? "アップロード中..." : "ファイルを追加"}
+                </span>
+              </label>
+            )}
+          </div>
+          {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+          {attachments.length === 0 ? (
+            <p className="text-xs text-slate-400">添付ファイルはまだありません。</p>
+          ) : (
+            <ul className="space-y-2">
+              {attachments.map((attachment) => (
+                <li key={attachment.id} className="flex flex-col gap-2 rounded-md bg-slate-900/60 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <a
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-semibold text-slate-100 underline"
+                    >
+                      {attachment.filename}
+                    </a>
+                    <p className="text-xs text-slate-400">
+                      {attachment.contentType} • {formatSize(attachment.size)} •{" "}
+                      {new Date(attachment.createdAt).toLocaleString("ja-JP")}
+                    </p>
+                  </div>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => handleDeleteAttachment(attachment.id)}
+                      className="rounded-md border border-red-500/60 px-3 py-1 text-xs text-red-300 hover:border-red-400"
+                    >
+                      削除
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="flex justify-end gap-3">

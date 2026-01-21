@@ -78,14 +78,16 @@ async function main() {
       name: superAdmin.displayName,
       displayName: superAdmin.displayName,
       role: "super_admin",
-      passwordHash: await hashPassword(superAdmin.password)
+      passwordHash: await hashPassword(superAdmin.password),
+      tenantId: tenant.id
     },
     create: {
       loginId: superAdmin.loginId,
       name: superAdmin.displayName,
       displayName: superAdmin.displayName,
       role: "super_admin",
-      passwordHash: await hashPassword(superAdmin.password)
+      passwordHash: await hashPassword(superAdmin.password),
+      tenantId: tenant.id
     }
   });
 
@@ -192,6 +194,30 @@ async function main() {
         venueId: savedVenue.id
       }
     });
+
+    if (venue.slug === "xrule-hall-a") {
+      await prisma.venueAttachment.upsert({
+        where: { pathname: `seed/${venue.slug}/demo-guide.pdf` },
+        update: {
+          url: "https://example.com/demo-guide.pdf",
+          filename: "demo-guide.pdf",
+          contentType: "application/pdf",
+          size: 123456,
+          tenantId: tenant.id,
+          venueId: savedVenue.id
+        },
+        create: {
+          tenantId: tenant.id,
+          venueId: savedVenue.id,
+          url: "https://example.com/demo-guide.pdf",
+          pathname: `seed/${venue.slug}/demo-guide.pdf`,
+          filename: "demo-guide.pdf",
+          contentType: "application/pdf",
+          size: 123456,
+          createdByUserId: null
+        }
+      });
+    }
   }
 }
 
